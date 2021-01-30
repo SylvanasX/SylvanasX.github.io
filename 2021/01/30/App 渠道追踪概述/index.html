@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="背景渠道分发都有跳转到 App Store 这一步，而 Apple 本身是不会提供太多信息给开发者的。所以，对于整个流程的三个步骤：在某个渠道点击下载链接并跳转到 App Store -&gt; App Store 内下载 App -&gt; 用户激活 App 中的第二步，是一个完全的黑盒，所以，没有办法精确地追踪一个用户在这三个步骤中的轨迹。  场景：  用户在网页上进行用户行为，产生了数据，然">
+<meta property="og:type" content="article">
+<meta property="og:title" content="App 渠道追踪概述">
+<meta property="og:url" content="http://example.com/2021/01/30/App%20%E6%B8%A0%E9%81%93%E8%BF%BD%E8%B8%AA%E6%A6%82%E8%BF%B0/index.html">
+<meta property="og:site_name" content="博客">
+<meta property="og:description" content="背景渠道分发都有跳转到 App Store 这一步，而 Apple 本身是不会提供太多信息给开发者的。所以，对于整个流程的三个步骤：在某个渠道点击下载链接并跳转到 App Store -&gt; App Store 内下载 App -&gt; 用户激活 App 中的第二步，是一个完全的黑盒，所以，没有办法精确地追踪一个用户在这三个步骤中的轨迹。  场景：  用户在网页上进行用户行为，产生了数据，然">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2020/6/23/172e091ffd49436e?w=1240&h=613&f=png&s=144096">
+<meta property="article:published_time" content="2021-01-30T06:12:47.000Z">
+<meta property="article:modified_time" content="2021-01-30T06:13:04.746Z">
+<meta property="article:author" content="SylvanasX">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://user-gold-cdn.xitu.io/2020/6/23/172e091ffd49436e?w=1240&h=613&f=png&s=144096">
+
+<link rel="canonical" href="http://example.com/2021/01/30/App%20%E6%B8%A0%E9%81%93%E8%BF%BD%E8%B8%AA%E6%A6%82%E8%BF%B0/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>App 渠道追踪概述 | 博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/01/30/App%20%E6%B8%A0%E9%81%93%E8%BF%BD%E8%B8%AA%E6%A6%82%E8%BF%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="SylvanasX">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          App 渠道追踪概述
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2021-01-30 14:12:47 / Modified: 14:13:04" itemprop="dateCreated datePublished" datetime="2021-01-30T14:12:47+08:00">2021-01-30</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>渠道分发都有跳转到 App Store 这一步，而 Apple 本身是不会提供太多信息给开发者的。所以，对于整个流程的三个步骤：在某个渠道点击下载链接并跳转到 App Store -&gt; App Store 内下载 App -&gt; 用户激活 App 中的第二步，是一个完全的黑盒，所以，没有办法精确地追踪一个用户在这三个步骤中的轨迹。</p>
+<ul>
+<li>场景：<br>  用户在网页上进行用户行为，产生了数据，然后下载了 App,当用户打开 App 的时候，希望知道渠道来源，并延续在网页上的行为和数据。</li>
+<li>例子：<br>  用户在 App 里面的浏览器访问了某个页面，被引导下载了 App, 等用户下载完成，打开 App 的时候，甚至能同步刚才在页面上的一些数据。<h2 id="方案"><a href="#方案" class="headerlink" title="方案"></a>方案</h2></li>
+</ul>
+<p><img src="https://user-gold-cdn.xitu.io/2020/6/23/172e091ffd49436e?w=1240&h=613&f=png&s=144096"></p>
+<ul>
+<li>用户访问落地页 URL, 如 <code>https://xxx/yyy?channelCode=23901&amp;testKey=testValue</code>, 并带上设备指纹数据渠道号放在URL中，业务参数等自定义参数放在 Body 中，向服务端请求 token</li>
+<li>用户点击下载按钮，复制 token 到粘贴板，使用到零宽度字符隐藏 token，是 iOS 则写 Cookie(SFSafariViewController iOS 9.x.x)</li>
+<li>H5 重定向到 App Store,用户下载，安装 App</li>
+<li>安装完成，用户打开 App,检测剪贴板是否有 token, 上报 token 和 设备指纹，iOS 9.x.x 尝试读 Cookie</li>
+<li>后端检验 token,渠道来源</li>
+<li>服务端返回参数</li>
+</ul>
+<p>有些情况会导致剪贴板没有数据（系统版本或用户覆盖剪贴板），所以通过收集设备的多维信息屏幕尺寸，操作系统，IP,手机型号, 访问时间等设备指纹信息，综合作为”唯一标识”（设备指纹），一种互补的方法。</p>
+<h3 id="各端处理"><a href="#各端处理" class="headerlink" title="各端处理"></a>各端处理</h3><p>前端：<br>提供对应的 Web SDK 方便集成,在进入 H5 页，获取</p>
+<ul>
+<li>屏幕高度 (window.screen.height)</li>
+<li>屏幕宽度 (window.screen.width)</li>
+<li>设备像素比 (window.devicePixelRatio)</li>
+<li>IP (服务端)</li>
+<li>设备类型 (iPhone | iPad | iPod | Android) 等</li>
+<li>系统版本号 （12.2）</li>
+<li>访问时间(服务端)</li>
+</ul>
+<p>等参数包含在 URL 中，自定义参数用 Body，请求成功返回 token,点击跳转 App Store 时，复制 token 到剪贴板。</p>
+<p>客户端：<br>获取剪贴板数据和设备指纹数据，请求渠道来源和自定义参数。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">	&quot;channelCode&quot;: &quot;&quot;,</span><br><span class="line">	&quot;data&quot;: &#123;</span><br><span class="line">		&quot;action&quot;: &quot;&quot;,</span><br><span class="line">		&quot;extend&quot;: &quot;&quot;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>服务端：<br>服务端校验 token 的合法性，以及渠道来源，如果没有获取到 token, 或 iOS &lt;=9.x.x 不支持 JS 操作剪贴板，所以这个时候，采用设备指纹作为“唯一标识”，判断来源。最后返回自定义参数,规则如下：</p>
+<ul>
+<li>获取在剪贴板能获取到 token, 就用 token 作为唯一标识</li>
+<li>如果获取不到 token，就在设备指纹完全一致的情况下，加上一定时间内的限制，存在一定误差</li>
+</ul>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>涉及实现技术点：</p>
+<ul>
+<li>粘贴板，零宽度字符(用于隐藏粘贴板内容，用户不可见)</li>
+<li>设备指纹，屏幕宽高、设备像素比、操作系统、操作系统版本、IP 和时间戳等</li>
+<li>iOS SFSafariViewController，获取 Cookie</li>
+</ul>
+<p>通过渠道追踪，主要用于解决以下问题：</p>
+<ul>
+<li>运营活动效果分析：可用于统计分析不同的运营活动带来的新增用户数量、留存情况。为App精细化运营提供支持</li>
+<li>H5页面操作延续功能：通过运营活动带来的App用户，在首次安装完成启动App，获取业务参数，可以延续之前H5页面的行为</li>
+<li>新用户冷启动推荐辅助：将新用户在H5页面的操作轨迹提供给推荐算法，解决新用户冷启动精准推荐问题</li>
+<li>社交分享效果统计：精确统计每个分享带来的App安装量及留存情况</li>
+<li>App地推效果统计：通过二维码统计地推效果</li>
+</ul>
+<p>iOS 14 往粘贴板写内容，然后打开别的 App 会有相关提示了，所以这种用粘贴板的方式可能不太友好</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/30/Swift%20%E5%87%BD%E6%95%B0%E5%BC%8F%E7%BC%96%E7%A8%8B%E5%86%85%E5%AE%B9%E6%B1%87%E6%80%BB/" rel="prev" title="Swift 函数式编程内容汇总">
+      <i class="fa fa-chevron-left"></i> Swift 函数式编程内容汇总
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/30/Swift%20%E5%87%BD%E6%95%B0%E5%BC%8F%E7%BC%96%E7%A8%8B-%E9%80%86%E5%8F%98/" rel="next" title="Swift 函数式编程:逆变">
+      Swift 函数式编程:逆变 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%83%8C%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%96%B9%E6%A1%88"><span class="nav-number">2.</span> <span class="nav-text">方案</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%84%E7%AB%AF%E5%A4%84%E7%90%86"><span class="nav-number">2.1.</span> <span class="nav-text">各端处理</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">SylvanasX</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">SylvanasX</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
